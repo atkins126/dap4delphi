@@ -29,11 +29,11 @@ type
   
   TInitializeRequestArguments = class(TBaseType)
   private
-    [JSONName('clientId')]
+    [JSONName('clientID')]
     FClientId: string;
     [JSONName('clientName')]
     FClientName: string;
-    [JSONName('adapterId')]
+    [JSONName('adapterID')]
     FAdapterId: string;
     [JSONName('locale')]
     FLocale: string;
@@ -58,6 +58,8 @@ type
     [JSONName('supportsMemoryEvent')]
     FSupportsMemoryEvent: boolean;
   public
+    constructor Create();
+
     property ClientId: string read FClientId write FClientId;
     property ClientName: string read FClientName write FClientName;
     property AdapterId: string read FAdapterId write FAdapterId;
@@ -168,8 +170,6 @@ type
 
   TBreakpointLocationsArguments = class(TBaseType)
   private
-    [JSONName('source'), Managed()]
-    FSource: TDefaultSource;
     [JSONName('line')]
     FLine: integer;
     [JSONName('column')]
@@ -179,15 +179,23 @@ type
     [JSONName('endColumn')]
     FEndColumn: integer;
   public
-    property Source: TDefaultSource read FSource write FSource;
     property Line: integer read FLine write FLine;
     property Column: integer read FColumn write FColumn;
     property EndLine: integer read FEndLine write FEndLine;
     property EndColumn: integer read FEndColumn write FEndColumn;
   end;
 
+  TBreakpointLocationsArguments<TAdapterData> = class(TBreakpointLocationsArguments)
+  private
+    [JSONName('source'), Managed()]
+    FSource: TSource<TAdapterData>;
+  public
+    property Source: TSource<TAdapterData> read FSource write FSource;
+  end;
+
   [RequestCommand(TRequestCommand.BreakpointLocations)]
-  TBreakpointLocationsRequest = class(TRequest<TBreakpointLocationsArguments>);
+  TBreakpointLocationsRequest<TAdapterData> = class(TRequest<TBreakpointLocationsArguments<TAdapterData>>);
+  TDynamicBreakpointLocationsRequest = TBreakpointLocationsRequest<TDynamicData>;
 
   TBreakpointLocationsResponseBody = class(TBaseType)
   private
@@ -201,8 +209,6 @@ type
 
   TSetBreakpointsArguments = class(TBaseType)
   private
-    [JSONName('source'), Managed()]
-    FSource: TDefaultSource;
     [JSONName('breakpoints'), Managed()]
     FBreakpoints: TSourceBreakpoints;
     [JSONName('lines')]
@@ -210,21 +216,29 @@ type
     [JSONName('sourceModified')]
     FSourceModified: boolean;
   public
-    property Source: TDefaultSource read FSource write FSource;
     property Breakpoints: TSourceBreakpoints read FBreakpoints write FBreakpoints;
     property Lines: TArray<integer> read FLines write FLines;
     property SourceModified: boolean read FSourceModified write FSourceModified;
   end;
 
+  TSetBreakpointsArguments<TAdapterData> = class(TSetBreakpointsArguments)
+  private
+    [JSONName('source'), Managed()]
+    FSource: TSource<TAdapterData>;
+  public
+    property Source: TSource<TAdapterData> read FSource write FSource;
+  end;
+
   [RequestCommand(TRequestCommand.SetBreakpoints)]
-  TSetBreakpointsRequest = class(TRequest<TSetBreakpointsArguments>);
+  TSetBreakpointsRequest<TAdapterData> = class(TRequest<TSetBreakpointsArguments<TAdapterData>>);
+  TDynamicSetBreakpointsRequest = TSetBreakpointsRequest<TDynamicData>;
 
   TSetBreakpointsResponseBody = class(TBaseType)
   private
     [JSONName('breakpoints'), Managed()]
-    FBreakpoints: TBreakpoints;
+    FBreakpoints: TDynamicBreakpoints;
   public
-    property Breakpoints: TBreakpoints read FBreakpoints;
+    property Breakpoints: TDynamicBreakpoints read FBreakpoints;
   end;
 
   TSetBreakpointsResponse = class(TResponse<TSetBreakpointsResponseBody>);
@@ -243,9 +257,9 @@ type
   TSetFunctionBreakpointsResponseBody = class(TBaseType)
   private
     [JSONName('breakpoints'), Managed()]
-    FBreakpoints: TBreakpoints;
+    FBreakpoints: TDynamicBreakpoints;
   public
-    property Breakpoints: TBreakpoints read FBreakpoints;
+    property Breakpoints: TDynamicBreakpoints read FBreakpoints;
   end;
 
   TSetFunctionBreakpointsResponse = class(TResponse<TSetFunctionBreakpointsResponseBody>);
@@ -270,9 +284,9 @@ type
   TSetExceptionBreakpointsResponseBody = class(TBaseType)
   private
     [JSONName('breakpoints'), Managed()]
-    FBreakpoints: TBreakpoints;
+    FBreakpoints: TDynamicBreakpoints;
   public
-    property Breakpoints: TBreakpoints read FBreakpoints;
+    property Breakpoints: TDynamicBreakpoints read FBreakpoints;
   end;
 
   TSetExceptionBreakpointsResponse = class(TResponse<TSetExceptionBreakpointsResponseBody>);
@@ -324,9 +338,9 @@ type
   TSetDataBreakpointResponseBody = class(TBaseType)
   private
     [JSONName('breakpoints'), Managed()]
-    FBreakpoints: TBreakpoints;
+    FBreakpoints: TDynamicBreakpoints;
   public
-    property Breakpoints: TBreakpoints read FBreakpoints write FBreakpoints;
+    property Breakpoints: TDynamicBreakpoints read FBreakpoints write FBreakpoints;
   end;
 
   TSetDataBreakpointResponse = class(TResponse<TSetDataBreakpointResponseBody>);
@@ -345,9 +359,9 @@ type
   TSetInstructionBreakpointResponseBody = class(TBaseType)
   private
     [JSONName('breakpoints'), Managed()]
-    FBreakpoints: TBreakpoints;
+    FBreakpoints: TDynamicBreakpoints;
   public
-    property Breakpoints: TBreakpoints read FBreakpoints write FBreakpoints;
+    property Breakpoints: TDynamicBreakpoints read FBreakpoints write FBreakpoints;
   end;
 
   TSetInstructionBreakpointResponse = class(TResponse<TSetInstructionBreakpointResponseBody>);
@@ -509,9 +523,9 @@ type
   end;
 
   [RequestCommand(TRequestCommand.Pause)]
-  TPauseRequestRequest = class(TRequest<TPauseRequestArguments>);
+  TPauseRequest = class(TRequest<TPauseRequestArguments>);
 
-  TPauseRequestResponse = class(TResponse<TEmptyBody>);
+  TPauseResponse = class(TResponse<TEmptyBody>);
 
   TStackTraceArguments = class(TBaseType)
   private
@@ -536,17 +550,17 @@ type
   TStackTraceResponseBody = class(TBaseType)
   private
     [JSONName('stackFrames'), Managed()]
-    FStackFrames: TStackFrames;
+    FStackFrames: TDynamicStackFrames;
     [JSONName('totalFrames')]
     FTotalFrames: integer;
   public
-    property StackFrames: TStackFrames read FStackFrames write FStackFrames;
+    property StackFrames: TDynamicStackFrames read FStackFrames write FStackFrames;
     property TotalFrames: integer read FTotalFrames write FTotalFrames;
   end;
 
   TStackTraceResponse = class(TResponse<TStackTraceResponseBody>);
 
-  TScopeArguments = class(TBaseType)
+  TScopesArguments = class(TBaseType)
   private
     [JSONName('frameId')]
     FFrameId: integer;
@@ -555,17 +569,17 @@ type
   end;
 
   [RequestCommand(TRequestCommand.Scopes)]
-  TScopeRequest = class(TRequest<TScopeArguments>);
+  TScopesRequest = class(TRequest<TScopesArguments>);
 
-  TScopeResponseBody = class(TBaseType)
+  TScopesResponseBody = class(TBaseType)
   private
     [JSONName('scopes'), Managed()]
-    FScopes: TScopes;
+    FScopes: TDynamicScopes;
   public
-    property Scopes: TScopes read FScopes write FScopes;
+    property Scopes: TDynamicScopes read FScopes write FScopes;
   end;
 
-  TScopeResponse = class(TResponse<TScopeResponseBody>);
+  TScopesResponse = class(TResponse<TScopesResponseBody>);
 
   TVariablesArguments = class(TBaseType)
   private
@@ -644,17 +658,23 @@ type
 
   TSourceArguments = class(TBaseType)
   private
-    [JSONName('source'), Managed()]
-    FSource: TDefaultSource;
     [JSONName('sourceReference')]
     FSourceReference: integer;
   public
-    property Source: TDefaultSource read FSource write FSource;
     property SourceReference: integer read FSourceReference write FSourceReference;
   end;
 
+  TSourceArguments<TAdapterData> = class(TSourceArguments)
+  private
+    [JSONName('source'), Managed()]
+    FSource: TSource<TAdapterData>;
+  public
+    property Source: TSource<TAdapterData> read FSource write FSource;
+  end;
+
   [RequestCommand(TRequestCommand.Source)]
-  TSourceRequest = class(TRequest<TSourceArguments>);
+  TSourceRequest<TAdapterData> = class(TRequest<TSourceArguments<TAdapterData>>);
+  TDynamicSourceRequest = TSourceRequest<TDynamicData>;
 
   TSourceResponseBody = class(TBaseType)
   private
@@ -846,22 +866,28 @@ type
 
   TStepInTargetsResponse = class(TResponse<TStepInTargetsResponseBody>);
 
-  TGotoTargetsArguments = class(TBaseType)
+  TGotoTargetsArguments= class(TBaseType)
   private
-    [JSONName('source'), Managed()]
-    FSource: TDefaultSource;
     [JSONName('line')]
     FLine: integer;
     [JSONName('column')]
     FColumn: integer;
   public
-    property Source: TDefaultSource read FSource write FSource;
     property Line: integer read FLine write FLine;
     property Column: integer read FColumn write FColumn;
   end;
 
+  TGotoTargetsArguments<TAdapterData> = class(TGotoTargetsArguments)
+  private
+    [JSONName('source'), Managed()]
+    FSource: TSource<TAdapterData>;
+  public
+    property Source: TSource<TAdapterData> read FSource write FSource;
+  end;
+
   [RequestCommand(TRequestCommand.GotoTargets)]
-  TGotoTargetsRequest = class(TRequest<TGotoTargetsArguments>);
+  TGotoTargetsRequest<TAdapterData> = class(TRequest<TGotoTargetsArguments<TAdapterData>>);
+  TDynamicGotoTargetsRequest = TGotoTargetsRequest<TDynamicData>;
 
   TGotoTargetsResponseBody = class(TBaseType)
   private
@@ -903,7 +929,7 @@ type
 
   TCompletitionsResponse = class(TResponse<TCompletitionsResponseBody>);
   
-  TExcpetionInfoArguments = class(TBaseType)
+  TExceptionInfoArguments = class(TBaseType)
   private
     [JSONName('threadId')]
     FThreadId: integer;
@@ -912,9 +938,9 @@ type
   end;
 
   [RequestCommand(TRequestCommand.ExceptionInfo)]
-  TExcpetionInfoRequest = class(TRequest<TExcpetionInfoArguments>);
+  TExceptionInfoRequest = class(TRequest<TExceptionInfoArguments>);
 
-  TExcpetionInfoResponseBody = class(TBaseType)
+  TExceptionInfoResponseBody = class(TBaseType)
   private
     [JSONName('exceptionId')]
     FExceptionId: string;
@@ -931,7 +957,7 @@ type
     property Details: TExceptionDetail read FDetails write FDetails;
   end;
 
-  TExcpetionInfoResponse = class(TResponse<TExcpetionInfoResponseBody>);
+  TExceptionInfoResponse = class(TResponse<TExceptionInfoResponseBody>);
 
   TReadMemoryArguments = class(TBaseType)
   private
@@ -1025,14 +1051,37 @@ type
   TDisassembleResponseBody = class(TBaseType)
   private
     [JSONName('instructions'), Managed()]
-    FInstructions: TDisassembleInstructions;
+    FInstructions: TDynamicDisassembleInstructions;
   public
-    property Instructions: TDisassembleInstructions read FInstructions write FInstructions;
+    property Instructions: TDynamicDisassembleInstructions read FInstructions write FInstructions;
   end;
 
   TDisassembleResponse = class(TResponse<TDisassembleResponseBody>);
-  
+
+  TRequestsRegistration = class
+  public
+    class procedure RegisterAll();
+    class procedure UnregisterAll();
+  end;
+
 implementation
+
+{ TInitializeRequestArguments }
+
+constructor TInitializeRequestArguments.Create;
+begin
+  inherited;
+  FLinesStartAt1 := true;
+  FColumnsStartAt1 := true;
+  FPathFormat := TPathFormat.Path;
+  FSupportsVariableType := true;
+  FSupportsVariablePaging := true;
+  FSupportsRunInTerminalRequest := true;
+  FSupportsMemoryReferences := true;
+  FSupportsProgressReporting := true;
+  FSupportsInvalidatedEvent := true;
+  FSupportsMemoryEvent := true;
+end;
 
 { TRestartArguments }
 
@@ -1040,6 +1089,100 @@ procedure TRestartArguments.BeforeDestruction;
 begin
   inherited;
   FArguments.Free();
+end;
+
+{ TRequestsRegistration }
+
+class procedure TRequestsRegistration.RegisterAll;
+begin
+  TProtocolMessage.RegisterRequest(TRequestCommand.Attach, TAttachRequest, TAttachResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.BreakpointLocations, TDynamicBreakpointLocationsRequest, TBreakpointLocationsResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Cancel, TCancelRequest, TCancelResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Completions, TCompletitionsRequest, TCompletitionsResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.ConfigurationDone, TConfigurationDoneRequest, TConfigurationDoneResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Continue, TContinueRequest, TContinueResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.DataBreakpointInfo, TDatabreakpointInfoRequest, TDatabreakpointInfoResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Disassemble, TDisassembleRequest, TDisassembleResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Disconnect, TDisconnectRequest, TDisconnectResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Evaluate, TEvaluteRequest, TEvaluteResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.ExceptionInfo, TExceptionInfoRequest, TExceptionInfoResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Goto, TGotoRequest, TGotoResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.GotoTargets, TDynamicGotoTargetsRequest, TGotoTargetsResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Initialize, TInitializeRequest, TInitializeResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Launch, TLaunchRequest, TLaunchResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.LoadedSources, TLoadedSourcesRequest, TLoadedSourcesResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Modules, TModulesRequest, TModulesResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Next, TNextRequest, TNextResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Pause, TPauseRequest, TPauseResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.ReadMemory, TReadMemoryRequest, TReadMemoryResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Restart, TRestartRequest, TRestartResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.RestartFrame, TRestartFrameRequest, TRestartFrameResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.ReverseContinue, TReverseContinueRequest, TReverseContinueResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Scopes, TScopesRequest, TScopesResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.SetBreakpoints, TDynamicSetBreakpointsRequest, TSetBreakpointsResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.SetDataBreakpoints, TSetDataBreakpointRequest, TSetDataBreakpointResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.SetExceptionBreakpoints, TSetExceptionBreakpointsRequest, TSetExceptionBreakpointsResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.SetExpression, TSetExpressionRequest, TSetExpressionResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.SetFunctionBreakpoints, TSetFunctionBreakpointsRequest, TSetFunctionBreakpointsResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.SetInstructionBreakpoints, TSetInstructionBreakpointRequest, TSetInstructionBreakpointResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.SetVariable, TSetVariableRequest, TSetVariableResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Source, TDynamicSourceRequest, TSourceResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.StackTrace, TStackTraceRequest, TStackTraceResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.StepBack, TStepBackRequest, TStepBackResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.StepIn, TStepInRequest, TStepInResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.StepInTargets, TStepInTargetsRequest, TStepInTargetsResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.StepOut, TStepOutRequest, TStepOutResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Terminate, TTerminateRequest, TTerminateResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.TerminateThreads, TTerminateThreadsRequest, TTerminateThreadsResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Threads, TThreadsRequest, TThreadsResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.Variables, TVariablesRequest, TVariablesResponse);
+  TProtocolMessage.RegisterRequest(TRequestCommand.WriteMemory, TWriteMemoryRequest, TWriteMemoryResponse);
+end;
+
+class procedure TRequestsRegistration.UnregisterAll;
+begin
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Attach);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.BreakpointLocations);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Cancel);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Completions);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.ConfigurationDone);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Continue);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.DataBreakpointInfo);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Disassemble);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Disconnect);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Evaluate);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.ExceptionInfo);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Goto);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.GotoTargets);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Initialize);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Launch);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.LoadedSources);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Modules);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Next);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Pause);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.ReadMemory);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Restart);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.RestartFrame);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.ReverseContinue);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Scopes);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.SetBreakpoints);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.SetDataBreakpoints);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.SetExceptionBreakpoints);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.SetExpression);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.SetFunctionBreakpoints);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.SetInstructionBreakpoints);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.SetVariable);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Source);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.StackTrace);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.StepBack);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.StepIn);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.StepInTargets);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.StepOut);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Terminate);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.TerminateThreads);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Threads);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.Variables);
+  TProtocolMessage.UnregisterRequest(TRequestCommand.WriteMemory);
 end;
 
 end.

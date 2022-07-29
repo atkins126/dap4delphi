@@ -38,7 +38,9 @@ implementation
 
 uses
   System.Rtti, System.TypInfo, System.SysUtils, System.Classes, System.Character,
-  System.Generics.Collections, BaseProtocol.Types;
+  System.Generics.Collections, System.JSON,
+  BaseProtocol.Types,
+  BaseProtocol.Events;
 
 const
   DEFAULT_NULL_ENUM_ITEM_NAME = 'None';
@@ -86,8 +88,10 @@ end;
 class procedure TBaseProtocolJsonAdapter.RegisterConverters(
   const AMarshal: TJSONMarshal);
 begin
-  DoRegisterObjectListConverter<TDefaultSource>(AMarshal);
+  DoRegisterObjectListConverter<TSource>(AMarshal);
+  DoRegisterObjectListConverter<TDynamicSource>(AMarshal);
   DoRegisterObjectListConverter<TBreakpoint>(AMarshal);
+  DoRegisterObjectListConverter<TDynamicBreakpoint>(AMarshal);
   DoRegisterObjectListConverter<TModule>(AMarshal);
   DoRegisterObjectListConverter<TBreakpointLocation>(AMarshal);
   DoRegisterObjectListConverter<TSourceBreakpoint>(AMarshal);
@@ -96,7 +100,8 @@ begin
   DoRegisterObjectListConverter<TExceptionOption>(AMarshal);
   DoRegisterObjectListConverter<TDataBreakpoint>(AMarshal);
   DoRegisterObjectListConverter<TInstructionBreakpoint>(AMarshal);
-  DoRegisterObjectListConverter<TDefaultStackFrame>(AMarshal);
+  DoRegisterObjectListConverter<TStackFrame>(AMarshal);
+  DoRegisterObjectListConverter<TDynamicStackFrame>(AMarshal);
   DoRegisterObjectListConverter<TScope>(AMarshal);
   DoRegisterObjectListConverter<TVariable>(AMarshal);
   DoRegisterObjectListConverter<TThread>(AMarshal);
@@ -105,6 +110,8 @@ begin
   DoRegisterObjectListConverter<TCompletitionItem>(AMarshal);
   DoRegisterObjectListConverter<TExceptionDetail>(AMarshal);
   DoRegisterObjectListConverter<TDisassembleInstruction>(AMarshal);
+  DoRegisterObjectListConverter<TExceptionBreakpointsFilter>(AMarshal);
+  DoRegisterObjectListConverter<TChecksum>(AMarshal);
 
   AMarshal.RegisterConverter(TEmptyBody,
     function(Data: TObject): TObject
@@ -124,23 +131,38 @@ begin
       raise ENotImplemented.Create('Not implemented.');
     end);
 
-  AMarshal.RegisterConverter(TDefaultStackFrame,
+  AMarshal.RegisterConverter(TDynamicStackFrame,
     function(Data: TObject): TObject
     begin
-      if TDefaultStackFrame(Data).ModuleId.IsType<Integer> then
-        Result := TStackFrame<Integer>.Create()
+      if TDynamicStackFrame(Data).ModuleId.IsType<Integer> then
+        Result := TStackFrame<Integer, TDynamicData>.Create()
       else
-        Result := TStackFrame<String>.Create();
+        Result := TStackFrame<String, TDynamicData>.Create();
       TPersistent(Result).Assign(TPersistent(Data));
     end);
 
-  AMarshal.RegisterConverter(TDefaultSource,
+  AMarshal.RegisterConverter(TDynamicSource,
     function(Data: TObject): TObject
+    var
+      LRttiCtx: TRttiContext;
     begin
-      if TDefaultSource(Data).AdapterData.IsType<String> then
-        Result := TSource<String>.Create()
-      else
-        raise ENotImplemented.Create('Not implemented.');
+      var LRttiType := LRttiCtx.GetType(Data.ClassInfo);
+      var LRttiProp := LRttiType.GetProperty('AdapterData');
+
+      var LAdapterDataType := TTypeKind.tkString;
+      if LRttiProp.PropertyType.Handle = PTypeInfo(TypeInfo(TValue)) then begin
+        var LData := LRttiProp.GetValue(Data).AsType<TValue>;
+        if (LData.Kind in [tkUnknown, tkUString]) then
+          LAdapterDataType := TTypeKind.tkUString;
+      end;
+
+      case LAdapterDataType of
+        //We can only marshal to string at the moment
+        tkUString: Result := TSource<String>.Create();
+        else
+          raise ENotImplemented.Create('Not implemented.');
+      end;
+
       TPersistent(Result).Assign(TPersistent(Data));
     end);
 end;
@@ -148,8 +170,10 @@ end;
 class procedure TBaseProtocolJsonAdapter.RegisterReverters(
   const AUnmarshal: TJSONUnMarshal);
 begin
-  DoRegisterObjectListReverter<TDefaultSource>(AUnmarshal);
+  DoRegisterObjectListReverter<TSource>(AUnmarshal);
+  DoRegisterObjectListReverter<TDynamicSource>(AUnmarshal);
   DoRegisterObjectListReverter<TBreakpoint>(AUnmarshal);
+  DoRegisterObjectListReverter<TDynamicBreakpoint>(AUnmarshal);
   DoRegisterObjectListReverter<TModule>(AUnmarshal);
   DoRegisterObjectListReverter<TBreakpointLocation>(AUnmarshal);
   DoRegisterObjectListReverter<TSourceBreakpoint>(AUnmarshal);
@@ -158,7 +182,8 @@ begin
   DoRegisterObjectListReverter<TExceptionOption>(AUnmarshal);
   DoRegisterObjectListReverter<TDataBreakpoint>(AUnmarshal);
   DoRegisterObjectListReverter<TInstructionBreakpoint>(AUnmarshal);
-  DoRegisterObjectListReverter<TDefaultStackFrame>(AUnmarshal);
+  DoRegisterObjectListReverter<TStackFrame>(AUnmarshal);
+  DoRegisterObjectListReverter<TDynamicStackFrame>(AUnmarshal);
   DoRegisterObjectListReverter<TScope>(AUnmarshal);
   DoRegisterObjectListReverter<TVariable>(AUnmarshal);
   DoRegisterObjectListReverter<TThread>(AUnmarshal);
@@ -167,6 +192,8 @@ begin
   DoRegisterObjectListReverter<TCompletitionItem>(AUnmarshal);
   DoRegisterObjectListReverter<TExceptionDetail>(AUnmarshal);
   DoRegisterObjectListReverter<TDisassembleInstruction>(AUnmarshal);
+  DoRegisterObjectListReverter<TExceptionBreakpointsFilter>(AUnmarshal);
+  DoRegisterObjectListReverter<TChecksum>(AUnmarshal);
 
   AUnmarshal.RegisterReverter(TEmptyBody,
     function(Data: TObject): TObject
@@ -186,21 +213,39 @@ begin
       raise ENotImplemented.Create('Not implemented.');
     end);
 
-  AUnmarshal.RegisterReverter(TDefaultStackFrame, 'FModuleId',
+  AUnmarshal.RegisterReverter(TDynamicStackFrame, 'moduleId',
     procedure(Data: TObject; Field, Arg: string)
     var
       LInteger: integer;
     begin
       if Integer.TryParse(Arg, LInteger) then
-        TDefaultStackFrame(Data).ModuleId := LInteger
+        TDynamicStackFrame(Data).ModuleId := LInteger
       else
-        TDefaultStackFrame(Data).ModuleId := Arg;
+        TDynamicStackFrame(Data).ModuleId := Arg;
     end);
 
-  AUnmarshal.RegisterReverter(TDefaultSource, 'FAdapterData',
+  AUnmarshal.RegisterReverter(TDynamicSource, 'adapterData',
     procedure(Data: TObject; Field, Arg: string)
     begin
-      TDefaultSource(Data).AdapterData := Arg;
+      TDynamicSource(Data).AdapterData := Arg;
+    end);
+
+  AUnmarshal.RegisterReverter(TUnknownEvent, 'event',
+    procedure(Data: TObject; Field, Arg: string)
+    begin
+      TUnknownEvent(Data).EventDescription := Arg;
+    end);
+
+  AUnmarshal.RegisterReverter(TUnknownEvent, 'body',
+    procedure(Data: TObject; Field: string; Arg: TObject)
+    begin
+      var LJson := TJSONValue.ParseJSONValue(TUnknownEvent(Data).Raw);
+      try
+        if Assigned(LJson) then
+          TUnknownEvent(Data).Body := LJson.FindValue('body').ToJSON();
+      finally
+        LJson.Free();
+      end;
     end);
 end;
 
@@ -302,5 +347,9 @@ begin
     LRttiField.FieldType.Handle, LEnumValue);
   LRttiField.SetValue(Data, LEnumValue);
 end;
+
+initialization
+  TBaseProtocolJsonAdapter.RegisterConverters(TJSONConverters.GetJSONMarshaler());
+  TBaseProtocolJsonAdapter.RegisterReverters(TJSONConverters.GetJSONUnMarshaler());
 
 end.

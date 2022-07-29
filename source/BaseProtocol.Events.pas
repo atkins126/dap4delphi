@@ -4,6 +4,7 @@ interface
 
 uses
   System.Rtti,
+  System.Generics.Collections,
   Rest.Json.Types,
   Rest.JsonReflect,
   BaseProtocol,
@@ -11,8 +12,17 @@ uses
   BaseProtocol.Json;
 
 type
+  [EventType(TEventType(-1))]
+  [EventType(TEventType.Unknown)]
+  TUnknownEvent = class(TEvent<TDynamicBody>)
+  private
+    FEventDescription: string;
+  public
+    property EventDescription: string read FEventDescription write FEventDescription;
+  end;
+
   [EventType(TEventType.Initialized)]
-  TInitializedEvent<T> = class(TEvent<T>);
+  TInitializedEvent = class(TEvent<TEmptyBody>);
 
   TStoppedEventBody = class(TBaseType)
   private
@@ -91,9 +101,9 @@ type
   end;
 
   [EventType(TEventType.Thread)]
-  TThreadEvent = class(TEvent<TThreadEventBody>)end;
+  TThreadEvent = class(TEvent<TThreadEventBody>);
 
-  TOutputEventBody<TData> = class(TBaseType)
+  TOutputEventBody = class(TBaseType)
   private
     [JSONName('category'), JSONReflect(ctString, rtString, TEnumInterceptor)]
     FCategory: TOutputEventCategory;
@@ -104,37 +114,44 @@ type
     [JSONName('variablesReference')]
     FVariablesReference: integer;
     [Managed()]
-    [JSONName('source')]
-    FSource: TDefaultSource;
     [JSONName('line')]
     FLine: integer;
     [JSONName('column')]
     FColumn: integer;
-    [JSONName('data')]
-    FData: TData;
   public
     property Category: TOutputEventCategory read FCategory write FCategory;
     property Output: string read FOutput write FOutput;
     property Group: TOutputEventGroup read FGroup write FGroup;
     property VariablesReference: integer read FVariablesReference write FVariablesReference;
-    property Source: TDefaultSource read FSource;
     property Line: integer read FLine write FLine;
     property Column: integer read FColumn write FColumn;
+  end;
+
+  TOutputEventBody<TData, TAdapterData> = class(TOutputEventBody)
+  private
+    [JSONName('source'), Managed()]
+    FSource: TSource<TAdapterData>;
+    [JSONName('data'), Managed()]
+    FData: TData;
+  public
+    property Source: TSource<TAdapterData> read FSource;
     property Data: TData read FData write FData;
   end;
 
   [EventType(TEventType.Output)]
-  TOutputEvent = class(TEvent<TOutputEventBody<TValue>>);
+  TOutputEvent<TData, TAdapterData> = class(TEvent<TOutputEventBody<TData, TAdapterData>>);
+
+  TDynamicOutputEvent = TOutputEvent<TDynamicData, TDynamicData>;
 
   TBreakpointEventBody = class(TBaseType)
   private
     [JSONName('reason'), JSONReflect(ctString, rtString, TEnumInterceptor)]
     FReason: TBreakpointEventReason;
     [JSONName('breakpoint')]
-    FBreakpoint: TBreakpoint;
+    FBreakpoint: TDynamicBreakpoint;
   public
     property Reason: TBreakpointEventReason read FReason write FReason;
-    property Breakpoint: TBreakpoint read FBreakpoint;
+    property Breakpoint: TDynamicBreakpoint read FBreakpoint;
   end;
 
   [EventType(TEventType.Breakpoint)]
@@ -159,16 +176,22 @@ type
   private
     [JSONName('reason'), JSONReflect(ctString, rtString, TEnumInterceptor)]
     FReason: TLoadedSourceEventReason;
-    [Managed()]
-    [JSONName('source')]
-    FSource: TDefaultSource;
   public
     property Reason: TLoadedSourceEventReason read FReason write FReason;
-    property Source: TDefaultSource read FSource;
+  end;
+
+  TLoadedSourceEventBody<TAdapterData> = class(TLoadedSourceEventBody)
+  private
+    [JSONName('source'), Managed()]
+    FSource: TSource<TAdapterData>;
+  public
+    property Source: TSource<TAdapterData> read FSource;
   end;
 
   [EventType(TEventType.LoadedSource)]
-  TLoadedSourceEvent = class(TEvent<TLoadedSourceEventBody>);
+  TLoadedSourceEvent<TAdapterData> = class(TEvent<TLoadedSourceEventBody<TAdapterData>>);
+
+  TDynamicLoadedSourceEvent = TLoadedSourceEvent<TDynamicData>;
 
   TProcessEventBody = class(TBaseType)
   private
@@ -295,6 +318,58 @@ type
   [EventType(TEventType.Memory)]
   TMemoryEvent = class(TEvent<TMemoryEventBody>);
 
+  TEventsRegistration = class
+  public
+    class procedure RegisterAll();
+    class procedure UnregisterAll();
+  end;
+
 implementation
+
+{ TEventsRegistration }
+
+class procedure TEventsRegistration.RegisterAll;
+begin
+  TProtocolMessage.RegisterEvent(TEventType(-1), TUnknownEvent);
+  TProtocolMessage.RegisterEvent(TEventType.Breakpoint, TBreakpointEvent);
+  TProtocolMessage.RegisterEvent(TEventType.Capabilities, TCapabilitiesEvent);
+  TProtocolMessage.RegisterEvent(TEventType.Continued, TContinuedEvent);
+  TProtocolMessage.RegisterEvent(TEventType.Exited, TExitedEvent);
+  TProtocolMessage.RegisterEvent(TEventType.Initialized, TInitializedEvent);
+  TProtocolMessage.RegisterEvent(TEventType.Invalidated, TInvalidatedEvent);
+  TProtocolMessage.RegisterEvent(TEventType.LoadedSource, TDynamicLoadedSourceEvent);
+  TProtocolMessage.RegisterEvent(TEventType.Memory, TMemoryEvent);
+  TProtocolMessage.RegisterEvent(TEventType.Module, TModuleEvent);
+  TProtocolMessage.RegisterEvent(TEventType.Output, TDynamicOutputEvent);
+  TProtocolMessage.RegisterEvent(TEventType.Process, TProcessEvent);
+  TProtocolMessage.RegisterEvent(TEventType.ProgressEnd, TProgressEndEvent);
+  TProtocolMessage.RegisterEvent(TEventType.ProgressStart, TProgressStartEvent);
+  TProtocolMessage.RegisterEvent(TEventType.ProgressUpdate, TProgressUpdateEvent);
+  TProtocolMessage.RegisterEvent(TEventType.Stopped, TStoppedEvent);
+  TProtocolMessage.RegisterEvent(TEventType.Terminated, TTerminatedEvent);
+  TProtocolMessage.RegisterEvent(TEventType.Thread, TThreadEvent);
+end;
+
+class procedure TEventsRegistration.UnregisterAll;
+begin
+  TProtocolMessage.UnregisterEvent(TEventType(-1));
+  TProtocolMessage.UnregisterEvent(TEventType.Breakpoint);
+  TProtocolMessage.UnregisterEvent(TEventType.Capabilities);
+  TProtocolMessage.UnregisterEvent(TEventType.Continued);
+  TProtocolMessage.UnregisterEvent(TEventType.Exited);
+  TProtocolMessage.UnregisterEvent(TEventType.Initialized);
+  TProtocolMessage.UnregisterEvent(TEventType.Invalidated);
+  TProtocolMessage.UnregisterEvent(TEventType.LoadedSource);
+  TProtocolMessage.UnregisterEvent(TEventType.Memory);
+  TProtocolMessage.UnregisterEvent(TEventType.Module);
+  TProtocolMessage.UnregisterEvent(TEventType.Output);
+  TProtocolMessage.UnregisterEvent(TEventType.Process);
+  TProtocolMessage.UnregisterEvent(TEventType.ProgressEnd);
+  TProtocolMessage.UnregisterEvent(TEventType.ProgressStart);
+  TProtocolMessage.UnregisterEvent(TEventType.ProgressUpdate);
+  TProtocolMessage.UnregisterEvent(TEventType.Stopped);
+  TProtocolMessage.UnregisterEvent(TEventType.Terminated);
+  TProtocolMessage.UnregisterEvent(TEventType.Thread);
+end;
 
 end.
