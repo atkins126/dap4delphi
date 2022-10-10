@@ -1,3 +1,5 @@
+# This repository was taken to the official host: https://github.com/Embarcadero/dap4delphi
+
 # Debug Adapter Protocol for Delphi
 
 The [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) (DAP) defines the abstract protocol used between a development tool (e.g. IDE or editor) and a debugger. This is an implementation of that protocol in Delphi. 
